@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"net/http"
+	"time"
 
 	"github.com/rewe-digital/cortex-gateway/gateway"
 
@@ -32,6 +33,7 @@ func main() {
 			GRPCMiddleware: []grpc.UnaryServerInterceptor{
 				middleware.ServerUserHeaderInterceptor,
 			},
+			GRPCServerTimeout: 30 * time.Second,
 		}
 		gatewayCfg gateway.Config
 	)
