@@ -13,5 +13,5 @@ FROM alpine:3
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /go/bin/cortex-gateway /go/bin/cortex-gateway
 
-ENV VERSION 0.1.0
+ENV VERSION 0.1.1
 ENTRYPOINT ["/go/bin/cortex-gateway"]
