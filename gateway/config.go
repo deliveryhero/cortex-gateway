@@ -11,6 +11,7 @@ type Config struct {
 	DistributorAddress   string
 	QueryFrontendAddress string
 	RulerAddress         string
+	AlertManagerAddress  string
 }
 
 // RegisterFlags adds the flags required to config this package's Config struct
@@ -18,6 +19,7 @@ func (cfg *Config) RegisterFlags(f *flag.FlagSet) {
 	f.StringVar(&cfg.DistributorAddress, "gateway.distributor.address", "", "Upstream HTTP URL for Cortex Distributor")
 	f.StringVar(&cfg.QueryFrontendAddress, "gateway.query-frontend.address", "", "Upstream HTTP URL for Cortex Query Frontend")
 	f.StringVar(&cfg.RulerAddress, "gateway.ruler.address", "", "Upstream HTTP URL for Cortex Query Frontend")
+	f.StringVar(&cfg.AlertManagerAddress, "gateway.alertmanager.address", "", "Upstream HTTP URL for Cortex AlertManager")
 }
 
 // Validate given config parameters. Returns nil if everything is fine
@@ -44,6 +46,13 @@ func (cfg *Config) Validate() error {
 
 	if !strings.HasPrefix(cfg.RulerAddress, "http") {
 		return fmt.Errorf("ruler address must start with a valid scheme (http/https). Given is '%v'", cfg.RulerAddress)
+	}
+	if cfg.AlertManagerAddress == "" {
+		return fmt.Errorf("you must set -gateway.alertmanager.address")
+	}
+
+	if !strings.HasPrefix(cfg.AlertManagerAddress, "http") {
+		return fmt.Errorf("alertmanager address must start with a valid scheme (http/https). Given is '%v'", cfg.AlertManagerAddress)
 	}
 	return nil
 }
