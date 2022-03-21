@@ -61,6 +61,7 @@ func (g *Gateway) registerRoutes() {
 	g.server.HTTP.PathPrefix("/api/prom/api/v1/alerts").Handler(AuthenticateTenant.Wrap(http.HandlerFunc(g.rulerProxy.Handler)))
 	g.server.HTTP.PathPrefix("/api/prom/api/v1/rules").Handler(AuthenticateTenant.Wrap(http.HandlerFunc(g.rulerProxy.Handler)))
 	g.server.HTTP.PathPrefix("/api/v1/alerts").Handler(AuthenticateTenant.Wrap(http.HandlerFunc(g.alertManagerProxy.Handler)))
+	g.server.HTTP.PathPrefix("/api/prom/alertmanager").Handler(AuthenticateTenant.Wrap(http.HandlerFunc(g.alertManagerProxy.Handler)))
 	g.server.HTTP.PathPrefix("/api/v1/rules").Handler(AuthenticateTenant.Wrap(http.HandlerFunc(g.rulerProxy.Handler)))
 	g.server.HTTP.PathPrefix("/api/prom/rules").Handler(AuthenticateTenant.Wrap(http.HandlerFunc(g.rulerProxy.Handler)))
 	g.server.HTTP.PathPrefix("/api").Handler(AuthenticateTenant.Wrap(http.HandlerFunc(g.queryFrontendProxy.Handler)))
