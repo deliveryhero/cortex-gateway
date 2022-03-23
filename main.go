@@ -6,8 +6,8 @@ import (
 
 	"github.com/rewe-digital/cortex-gateway/gateway"
 
-	"github.com/cortexproject/cortex/pkg/util"
-	"github.com/cortexproject/cortex/pkg/util/flagext"
+	"github.com/cortexproject/cortex/pkg/util/log"
+	"github.com/grafana/dskit/flagext"
 	"github.com/opentracing-contrib/go-stdlib/nethttp"
 	"github.com/opentracing/opentracing-go"
 	"github.com/weaveworks/common/middleware"
@@ -39,24 +39,24 @@ func main() {
 	flagext.RegisterFlags(&serverCfg, &gatewayCfg)
 	flag.Parse()
 
-	util.InitLogger(&serverCfg)
+	log.InitLogger(&serverCfg)
 
 	// Must be done after initializing the logger, otherwise no log message is printed
 	err := gatewayCfg.Validate()
-	util.CheckFatal("validating gateway config", err)
+	log.CheckFatal("validating gateway config", err)
 
 	// Setting the environment variable JAEGER_AGENT_HOST enables tracing
 	trace, err := tracing.NewFromEnv("cortex-gateway")
-	util.CheckFatal("initializing tracing", err)
+	log.CheckFatal("initializing tracing", err)
 	defer trace.Close()
 
 	svr, err := server.New(serverCfg)
-	util.CheckFatal("initializing server", err)
+	log.CheckFatal("initializing server", err)
 	defer svr.Shutdown()
 
 	// Setup proxy and register routes
 	gateway, err := gateway.New(gatewayCfg, svr)
-	util.CheckFatal("initializing gateway", err)
+	log.CheckFatal("initializing gateway", err)
 	gateway.Start()
 
 	svr.Run()
