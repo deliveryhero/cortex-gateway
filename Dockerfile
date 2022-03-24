@@ -1,6 +1,6 @@
 
 # build image
-FROM golang:1.14-alpine as builder
+FROM golang:1.17-alpine as builder
 RUN apk update && apk add --no-cache git ca-certificates && update-ca-certificates
 
 WORKDIR /app
@@ -13,5 +13,5 @@ FROM alpine:3
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /go/bin/cortex-gateway /go/bin/cortex-gateway
 
-ENV VERSION 0.1.1
+ENV VERSION 0.1.2
 ENTRYPOINT ["/go/bin/cortex-gateway"]
