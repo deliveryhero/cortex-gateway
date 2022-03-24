@@ -4,8 +4,8 @@ go 1.17
 
 require (
 	github.com/cortexproject/cortex v1.11.1
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-kit/kit v0.12.0
+	github.com/golang-jwt/jwt/v4 v4.0.0
 	github.com/grafana/dskit v0.0.0-20220314144907-ec94f1a0a3a8
 	github.com/opentracing-contrib/go-stdlib v1.0.0
 	github.com/opentracing/opentracing-go v1.2.0

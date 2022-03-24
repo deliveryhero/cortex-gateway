@@ -6,10 +6,10 @@ import (
 	"net/http"
 
 	"github.com/cortexproject/cortex/pkg/util/log"
-	jwt "github.com/dgrijalva/jwt-go"
-	jwtReq "github.com/dgrijalva/jwt-go/request"
 	klog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	jwt "github.com/golang-jwt/jwt/v4"
+	jwtReq "github.com/golang-jwt/jwt/v4/request"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/weaveworks/common/middleware"
