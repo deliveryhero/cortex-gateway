@@ -4,7 +4,7 @@ import (
 	"flag"
 	"net/http"
 
-	"github.com/rewe-digital/cortex-gateway/gateway"
+	"github.com/deliveryhero/cortex-gateway/gateway"
 
 	"github.com/cortexproject/cortex/pkg/util/log"
 	"github.com/grafana/dskit/flagext"
