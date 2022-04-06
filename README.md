@@ -29,6 +29,7 @@ We try to solve this problem by adding a Gateway which can be considered the ent
 | `-gateway.distributor.address` | Upstream HTTP URL for Cortex Distributor | (empty string) |
 | `-gateway.query-frontend.address` | Upstream HTTP URL for Cortex Query Frontend | (empty string) |
 | `-gateway.auth.jwt-secret` | HMAC secret to sign JSON Web Tokens | (empty string) |
+| `-gateway.auth.tenant-name` | The tenant name to use when you want to disable jwt auth, if specified the jwt secret value is ignored | (empty string) |
 
 ### Expected JWT payload
 

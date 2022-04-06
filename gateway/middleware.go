@@ -34,7 +34,7 @@ var (
 )
 
 func init() {
-	flag.StringVar(&tenantName, "gateway.auth.tenantName", "", "Tenant name to use when jwt auth disabled")
+	flag.StringVar(&tenantName, "gateway.auth.tenant-name", "", "Tenant name to use when jwt auth disabled")
 	flag.StringVar(&jwtSecret, "gateway.auth.jwt-secret", "", "Secret to sign JSON Web Tokens")
 	flag.StringVar(&extraHeadersArg, "gateway.auth.jwt-extra-headers", "", "A comma separated list of additional headers to scan for JSON Web Tokens presence")
 }
