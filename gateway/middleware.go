@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/cortexproject/cortex/pkg/util/log"
 	klog "github.com/go-kit/kit/log"
@@ -16,7 +17,9 @@ import (
 )
 
 var (
-	jwtSecret    string
+	jwtSecret       string
+	extraHeadersArg string
+
 	authFailures = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "cortex_gateway",
 		Name:      "failed_authentications_total",
@@ -31,16 +34,24 @@ var (
 
 func init() {
 	flag.StringVar(&jwtSecret, "gateway.auth.jwt-secret", "", "Secret to sign JSON Web Tokens")
+	flag.StringVar(&extraHeadersArg, "gateway.auth.jwt-extra-headers", "", "A comma separated list of additional headers to scan for JSON Web Tokens presence")
 }
 
 // AuthenticateTenant validates the Bearer Token and attaches the TenantID to the request
 var AuthenticateTenant = middleware.Func(func(next http.Handler) http.Handler {
+
+	var extraHeaders []string
+	if extraHeadersArg != "" {
+		extraHeaders = strings.Split(extraHeadersArg, ",")
+	}
+	headers := append(extraHeaders, "Authorization")
+	authorizationHeaderExtractor := buildHeaderExtractor(extraHeaders)
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := klog.With(log.WithContext(r.Context(), log.Logger), "ip_address", r.RemoteAddr)
 		level.Debug(logger).Log("msg", "authenticating request", "route", r.RequestURI)
 
-		tokenString := r.Header.Get("Authorization") // Get operation is case insensitive
-		if tokenString == "" {
+		if !requestContainsToken(r, headers) {
 			level.Info(logger).Log("msg", "no bearer token provided")
 			http.Error(w, "No bearer token provided", http.StatusUnauthorized)
 			authFailures.WithLabelValues("no_token").Inc()
@@ -51,7 +62,7 @@ var AuthenticateTenant = middleware.Func(func(next http.Handler) http.Handler {
 		te := &tenant{}
 		_, err := jwtReq.ParseFromRequest(
 			r,
-			jwtReq.AuthorizationHeaderExtractor,
+			authorizationHeaderExtractor,
 			func(token *jwt.Token) (interface{}, error) {
 				// Only HMAC algorithms accepted - algorithm validation is super important!
 				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -78,3 +89,22 @@ var AuthenticateTenant = middleware.Func(func(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 })
+
+func buildHeaderExtractor(extraHeaders []string) jwtReq.Extractor {
+	authorizationHeaderExtractor := make(jwtReq.MultiExtractor, len(extraHeaders)+1)
+	for i, header := range extraHeaders {
+		authorizationHeaderExtractor[i] = jwtReq.HeaderExtractor{header}
+	}
+	authorizationHeaderExtractor[len(extraHeaders)] = jwtReq.AuthorizationHeaderExtractor
+	return authorizationHeaderExtractor
+}
+
+func requestContainsToken(r *http.Request, headers []string) bool {
+	for _, header := range headers {
+		idToken := r.Header.Get(header)
+		if idToken != "" {
+			return true
+		}
+	}
+	return false
+}
