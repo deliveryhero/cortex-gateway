@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	jwt "github.com/golang-jwt/jwt/v4"
 	jwtReq "github.com/golang-jwt/jwt/v4/request"
 )
 
@@ -107,6 +108,62 @@ func Test_buildHeaderExtractor(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := buildHeaderExtractor(tt.extraHeaders); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("buildHeaderExtractor() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_extractTenantID(t *testing.T) {
+	claim := jwt.MapClaims{
+		"tenant_id":                     "1234",
+		"https://example.com/tenant_id": "1234",
+		"empty":                         "",
+	}
+	tests := []struct {
+		name          string
+		claim         jwt.MapClaims
+		tenantIDClaim string
+		want          string
+		wantErr       bool
+	}{
+		{
+			name:          "Tenant ID Claim",
+			claim:         claim,
+			tenantIDClaim: "tenant_id",
+			want:          "1234",
+			wantErr:       false,
+		},
+		{
+			name:          "URL format Claim",
+			claim:         claim,
+			tenantIDClaim: "https://example.com/tenant_id",
+			want:          "1234",
+			wantErr:       false,
+		},
+		{
+			name:          "Empty tenant id",
+			claim:         claim,
+			tenantIDClaim: "empty",
+			want:          "",
+			wantErr:       true,
+		},
+		{
+			name:          "Missing Claim",
+			claim:         claim,
+			tenantIDClaim: "absent",
+			want:          "",
+			wantErr:       true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := extractTenantID(tt.claim, tt.tenantIDClaim)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("extractTenantID() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("extractTenantID() = %v, want %v", got, tt.want)
 			}
 		})
 	}
