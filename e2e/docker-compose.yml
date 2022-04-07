@@ -21,6 +21,18 @@ services:
       BEARER_TOKEN: $BEARER_TOKEN
     ports:
       - "12345:12345"
+
+  cortex:
+    image: cortexproject/cortex:v1.11.1
+    volumes:
+      - ./cortex:/etc/cortex-config
+      - cortex:/data
+    entrypoint:
+      - /bin/cortex
+      - -config.file=/etc/cortex-config/config.yaml
+    ports:
+      - "9009:9009"
+
   grafana:
     image: grafana/grafana
     volumes:
@@ -29,3 +41,6 @@ services:
     ports:
       - 3000:3000
     restart: always
+
+volumes:
+  cortex:
