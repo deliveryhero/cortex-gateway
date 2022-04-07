@@ -50,6 +50,7 @@ var AuthenticateTenant = middleware.Func(func(next http.Handler) http.Handler {
 	}
 	headers := append(extraHeaders, "Authorization")
 	authorizationHeaderExtractor := buildHeaderExtractor(extraHeaders)
+	jwks := newJWKS()
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -76,6 +77,8 @@ var AuthenticateTenant = middleware.Func(func(next http.Handler) http.Handler {
 			func(token *jwt.Token) (interface{}, error) {
 				keyAlg := token.Method.Alg()
 				switch keyAlg {
+				case "RS256", "RS384", "RS512", "EdDSA", "ES256", "ES384", "ES512", "PS256", "PS384", "PS512":
+					return jwks.Keyfunc(token)
 				case "HS256", "HS384", "HS512":
 					return []byte(jwtSecret), nil
 				}
