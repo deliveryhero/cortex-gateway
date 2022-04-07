@@ -33,6 +33,7 @@ We try to solve this problem by adding a Gateway which can be considered the ent
 | `-gateway.auth.jwt-secret` | HMAC secret to sign JSON Web Tokens | (empty string) |
 | `-gateway.auth.jwt-extra-headers` | A comma supported list of additional headers to scan for JSON web tokens presence | (empty string) |
 | `-gateway.auth.tenant-name` | The tenant name to use when you want to disable jwt auth, if specified the jwt secret value is ignored | (empty string) |
+| `-gateway.auth.tenant-id-claim` | The name of the tenant ID Claim | 'tenant_id' |
 
 ### Expected JWT payload
 
