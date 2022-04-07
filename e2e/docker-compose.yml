@@ -1,18 +1,26 @@
 version: "3.1"
 
 services:
-  prometheus:
-    image: prom/prometheus:v2.19.0
+  agent:
+    image: grafana/agent:v0.23.0
     volumes:
-      - ./prometheus/:/etc/prometheus/
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
-      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
-      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - ./agent:/etc/agent-config
+    entrypoint:
+      - /bin/agent
+      - -config.file=/etc/agent-config/config.yaml
+      - -metrics.wal-directory=/tmp/agent/wal
+      - -config.expand-env
+      - -config.enable-read-api
+    environment:
+      HOSTNAME: agent
+      REMOTE_WRITE_HOST: host.docker.internal:8900
+      OAUTH_CLIENT_ID: $AGENT_CLIENT_ID
+      OAUTH_CLIENT_SECRET: $OAUTH_CLIENT_SECRET
+      OAUTH_TOKEN_URL: $OAUTH_TOKEN_URL
+      OAUTH_AUDIENCE: $OAUTH_AUDIENCE
+      BEARER_TOKEN: $BEARER_TOKEN
     ports:
-      - 9090:9090
-    restart: always
+      - "12345:12345"
   grafana:
     image: grafana/grafana
     volumes:
