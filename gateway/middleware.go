@@ -74,13 +74,12 @@ var AuthenticateTenant = middleware.Func(func(next http.Handler) http.Handler {
 			r,
 			authorizationHeaderExtractor,
 			func(token *jwt.Token) (interface{}, error) {
-				// Only HMAC algorithms accepted - algorithm validation is super important!
-				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-					level.Info(logger).Log("msg", "unexpected signing method", "used_method", token.Header["alg"])
-					return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+				keyAlg := token.Method.Alg()
+				switch keyAlg {
+				case "HS256", "HS384", "HS512":
+					return []byte(jwtSecret), nil
 				}
-
-				return []byte(jwtSecret), nil
+				return nil, fmt.Errorf("Unexpected signing method: %v", keyAlg)
 			},
 			jwtReq.WithClaims(te))
 
