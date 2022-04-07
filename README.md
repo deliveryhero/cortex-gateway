@@ -31,7 +31,7 @@ We try to solve this problem by adding a Gateway which can be considered the ent
 | `-gateway.rules.address` | Upstream HTTP URL for Cortex ruler | (empty string) |
 | `-gateway.alertmanager.address` | Upstream HTTP URL for Cortex Alertmanager | (empty string) |
 | `-gateway.auth.jwt-secret` | HMAC secret to sign JSON Web Tokens | (empty string) |
-| `gateway.auth.jwt-extra-headers` | A comma supported list of additional headers to scan for JSON web tokens presence | (empty string) |
+| `-gateway.auth.jwt-extra-headers` | A comma supported list of additional headers to scan for JSON web tokens presence | (empty string) |
 | `-gateway.auth.tenant-name` | The tenant name to use when you want to disable jwt auth, if specified the jwt secret value is ignored | (empty string) |
 
 ### Expected JWT payload
@@ -45,3 +45,21 @@ The expected Bearer token payload can be found here: https://github.com/rewe-dig
 The audience and version claim is currently unused, but might be used in the future (e. g. to invalidate tokens).
 
 Forked from: [https://github.com/rewe-digital/cortex-gateway](https://github.com/rewe-digital/cortex-gateway)
+
+### How to run locally
+
+Simply build and run with following commands:
+
+```
+go build
+./cortex-gateway
+```
+
+### How to release
+
+Add a new release tag and build and publish the docker image. Commands to build and publish image:
+
+```
+docker image build . -f ./Dockerfile --tag $CONTAINER_REGISTRY/cortex-gateway:v0.0.0
+docker push $CONTAINER_REGISTRY/cortex-gateway:v0.0.0
+```
