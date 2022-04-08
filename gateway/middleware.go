@@ -8,8 +8,8 @@ import (
 
 	"github.com/MicahParks/keyfunc"
 	"github.com/cortexproject/cortex/pkg/util/log"
-	klog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	klog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	jwt "github.com/golang-jwt/jwt/v4"
 	jwtReq "github.com/golang-jwt/jwt/v4/request"
 	"github.com/prometheus/client_golang/prometheus"

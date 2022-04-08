@@ -6,8 +6,8 @@ import (
 
 	"github.com/MicahParks/keyfunc"
 	"github.com/cortexproject/cortex/pkg/util/log"
-	klog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	klog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
 
 var (
