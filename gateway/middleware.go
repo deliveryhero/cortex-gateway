@@ -37,7 +37,7 @@ func newAuthenticationMiddleware(cfg Config) middleware.Func {
 	}
 	headers := append(extraHeaders, "Authorization")
 	authorizationHeaderExtractor := buildHeaderExtractor(extraHeaders)
-	jwks := newJWKS()
+	jwks := newJWKS(cfg)
 
 	return middleware.Func(func(next http.Handler) http.Handler {
 

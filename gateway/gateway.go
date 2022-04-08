@@ -56,7 +56,7 @@ func (g *Gateway) Start() {
 
 // RegisterRoutes binds all to be piped routes to their handlers
 func (g *Gateway) registerRoutes() {
-	authenticateTenant := newAuthenticationMiddleware()
+	authenticateTenant := newAuthenticationMiddleware(g.cfg)
 	g.server.HTTP.Path("/all_user_stats").HandlerFunc(g.distributorProxy.Handler)
 	g.server.HTTP.Path("/api/prom/push").Handler(authenticateTenant.Wrap(http.HandlerFunc(g.distributorProxy.Handler)))
 	g.server.HTTP.Path("/api/v1/push").Handler(authenticateTenant.Wrap(http.HandlerFunc(g.distributorProxy.Handler)))
