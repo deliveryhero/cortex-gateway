@@ -1,7 +1,6 @@
 package gateway
 
 import (
-	"flag"
 	"fmt"
 	"net/http"
 	"strings"
@@ -18,11 +17,6 @@ import (
 )
 
 var (
-	jwtSecret       string
-	extraHeadersArg string
-	tenantName      string
-	tenantIDClaim   string
-
 	authFailures = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "cortex_gateway",
 		Name:      "failed_authentications_total",
@@ -35,18 +29,11 @@ var (
 	}, []string{"tenant"})
 )
 
-func init() {
-	flag.StringVar(&tenantName, "gateway.auth.tenant-name", "", "Tenant name to use when jwt auth disabled")
-	flag.StringVar(&jwtSecret, "gateway.auth.jwt-secret", "", "Secret to sign JSON Web Tokens")
-	flag.StringVar(&extraHeadersArg, "gateway.auth.jwt-extra-headers", "", "A comma separated list of additional headers to scan for JSON Web Tokens presence")
-	flag.StringVar(&tenantIDClaim, "gateway.auth.tenant-id-claim", "tenant_id", "The name of the Tenant ID Claim. Defaults to tenant_id")
-}
-
 // AuthenticateTenant validates the Bearer Token and attaches the TenantID to the request
-func newAuthenticationMiddleware() middleware.Func {
+func newAuthenticationMiddleware(cfg Config) middleware.Func {
 	var extraHeaders []string
-	if extraHeadersArg != "" {
-		extraHeaders = strings.Split(extraHeadersArg, ",")
+	if cfg.ExtraHeaders != "" {
+		extraHeaders = strings.Split(cfg.ExtraHeaders, ",")
 	}
 	headers := append(extraHeaders, "Authorization")
 	authorizationHeaderExtractor := buildHeaderExtractor(extraHeaders)
@@ -56,8 +43,8 @@ func newAuthenticationMiddleware() middleware.Func {
 
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-			if tenantName != "" {
-				r.Header.Set("X-Scope-OrgID", tenantName)
+			if cfg.TenantName != "" {
+				r.Header.Set("X-Scope-OrgID", cfg.TenantName)
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -76,7 +63,7 @@ func newAuthenticationMiddleware() middleware.Func {
 			_, err := jwtReq.ParseFromRequest(
 				r,
 				authorizationHeaderExtractor,
-				newKeyfunc(jwtSecret, jwks),
+				newKeyfunc(cfg.JwtSecret, jwks),
 				jwtReq.WithClaims(te))
 
 			// If Tenant's Valid method returns false an error will be set as well, hence there is no need
@@ -88,7 +75,7 @@ func newAuthenticationMiddleware() middleware.Func {
 				return
 			}
 
-			tenantID, err := extractTenantID(te, tenantIDClaim)
+			tenantID, err := extractTenantID(te, cfg.TenantIDClaim)
 			if err != nil {
 				level.Info(logger).Log("msg", "invalid tenant id", "err", err.Error())
 				http.Error(w, "Invalid Tenant ID", http.StatusUnauthorized)
