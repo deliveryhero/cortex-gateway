@@ -31,6 +31,10 @@ var (
 
 // AuthenticateTenant validates the Bearer Token and attaches the TenantID to the request
 func newAuthenticationMiddleware(cfg Config) middleware.Func {
+	if cfg.TenantName != "" {
+		return newStaticTenantNameMiddleware(cfg.TenantName)
+	}
+
 	var extraHeaders []string
 	if cfg.ExtraHeaders != "" {
 		extraHeaders = strings.Split(cfg.ExtraHeaders, ",")
@@ -43,11 +47,6 @@ func newAuthenticationMiddleware(cfg Config) middleware.Func {
 
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-			if cfg.TenantName != "" {
-				r.Header.Set("X-Scope-OrgID", cfg.TenantName)
-				next.ServeHTTP(w, r)
-				return
-			}
 			logger := klog.With(log.WithContext(r.Context(), log.Logger), "ip_address", r.RemoteAddr)
 			level.Debug(logger).Log("msg", "authenticating request", "route", r.RequestURI)
 
@@ -86,6 +85,15 @@ func newAuthenticationMiddleware(cfg Config) middleware.Func {
 			// Token is valid
 			authSuccess.WithLabelValues(tenantID).Inc()
 			r.Header.Set("X-Scope-OrgID", tenantID)
+			next.ServeHTTP(w, r)
+		})
+	})
+}
+
+func newStaticTenantNameMiddleware(tenantName string) middleware.Func {
+	return middleware.Func(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Header.Set("X-Scope-OrgID", tenantName)
 			next.ServeHTTP(w, r)
 		})
 	})
