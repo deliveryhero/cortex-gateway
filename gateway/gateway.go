@@ -56,16 +56,17 @@ func (g *Gateway) Start() {
 
 // RegisterRoutes binds all to be piped routes to their handlers
 func (g *Gateway) registerRoutes() {
+	authenticateTenant := newAuthenticationMiddleware()
 	g.server.HTTP.Path("/all_user_stats").HandlerFunc(g.distributorProxy.Handler)
-	g.server.HTTP.Path("/api/prom/push").Handler(AuthenticateTenant.Wrap(http.HandlerFunc(g.distributorProxy.Handler)))
-	g.server.HTTP.Path("/api/v1/push").Handler(AuthenticateTenant.Wrap(http.HandlerFunc(g.distributorProxy.Handler)))
-	g.server.HTTP.PathPrefix("/api/prom/api/v1/alerts").Handler(AuthenticateTenant.Wrap(http.HandlerFunc(g.rulerProxy.Handler)))
-	g.server.HTTP.PathPrefix("/api/prom/api/v1/rules").Handler(AuthenticateTenant.Wrap(http.HandlerFunc(g.rulerProxy.Handler)))
-	g.server.HTTP.PathPrefix("/api/v1/alerts").Handler(AuthenticateTenant.Wrap(http.HandlerFunc(g.alertManagerProxy.Handler)))
-	g.server.HTTP.PathPrefix("/api/prom/alertmanager").Handler(AuthenticateTenant.Wrap(http.HandlerFunc(g.alertManagerProxy.Handler)))
-	g.server.HTTP.PathPrefix("/api/v1/rules").Handler(AuthenticateTenant.Wrap(http.HandlerFunc(g.rulerProxy.Handler)))
-	g.server.HTTP.PathPrefix("/api/prom/rules").Handler(AuthenticateTenant.Wrap(http.HandlerFunc(g.rulerProxy.Handler)))
-	g.server.HTTP.PathPrefix("/api").Handler(AuthenticateTenant.Wrap(http.HandlerFunc(g.queryFrontendProxy.Handler)))
+	g.server.HTTP.Path("/api/prom/push").Handler(authenticateTenant.Wrap(http.HandlerFunc(g.distributorProxy.Handler)))
+	g.server.HTTP.Path("/api/v1/push").Handler(authenticateTenant.Wrap(http.HandlerFunc(g.distributorProxy.Handler)))
+	g.server.HTTP.PathPrefix("/api/prom/api/v1/alerts").Handler(authenticateTenant.Wrap(http.HandlerFunc(g.rulerProxy.Handler)))
+	g.server.HTTP.PathPrefix("/api/prom/api/v1/rules").Handler(authenticateTenant.Wrap(http.HandlerFunc(g.rulerProxy.Handler)))
+	g.server.HTTP.PathPrefix("/api/v1/alerts").Handler(authenticateTenant.Wrap(http.HandlerFunc(g.alertManagerProxy.Handler)))
+	g.server.HTTP.PathPrefix("/api/prom/alertmanager").Handler(authenticateTenant.Wrap(http.HandlerFunc(g.alertManagerProxy.Handler)))
+	g.server.HTTP.PathPrefix("/api/v1/rules").Handler(authenticateTenant.Wrap(http.HandlerFunc(g.rulerProxy.Handler)))
+	g.server.HTTP.PathPrefix("/api/prom/rules").Handler(authenticateTenant.Wrap(http.HandlerFunc(g.rulerProxy.Handler)))
+	g.server.HTTP.PathPrefix("/api").Handler(authenticateTenant.Wrap(http.HandlerFunc(g.queryFrontendProxy.Handler)))
 	g.server.HTTP.Path("/health").HandlerFunc(g.healthCheck)
 	g.server.HTTP.PathPrefix("/").HandlerFunc(g.notFoundHandler)
 }

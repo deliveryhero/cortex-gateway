@@ -43,8 +43,7 @@ func init() {
 }
 
 // AuthenticateTenant validates the Bearer Token and attaches the TenantID to the request
-var AuthenticateTenant = middleware.Func(func(next http.Handler) http.Handler {
-
+func newAuthenticationMiddleware() middleware.Func {
 	var extraHeaders []string
 	if extraHeadersArg != "" {
 		extraHeaders = strings.Split(extraHeadersArg, ",")
@@ -53,54 +52,57 @@ var AuthenticateTenant = middleware.Func(func(next http.Handler) http.Handler {
 	authorizationHeaderExtractor := buildHeaderExtractor(extraHeaders)
 	jwks := newJWKS()
 
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return middleware.Func(func(next http.Handler) http.Handler {
 
-		if tenantName != "" {
-			r.Header.Set("X-Scope-OrgID", tenantName)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+			if tenantName != "" {
+				r.Header.Set("X-Scope-OrgID", tenantName)
+				next.ServeHTTP(w, r)
+				return
+			}
+			logger := klog.With(log.WithContext(r.Context(), log.Logger), "ip_address", r.RemoteAddr)
+			level.Debug(logger).Log("msg", "authenticating request", "route", r.RequestURI)
+
+			if !requestContainsToken(r, headers) {
+				level.Info(logger).Log("msg", "no bearer token provided")
+				http.Error(w, "No bearer token provided", http.StatusUnauthorized)
+				authFailures.WithLabelValues("no_token").Inc()
+				return
+			}
+
+			// Try to parse and validate JWT
+			te := jwt.MapClaims{}
+			_, err := jwtReq.ParseFromRequest(
+				r,
+				authorizationHeaderExtractor,
+				newKeyfunc(jwtSecret, jwks),
+				jwtReq.WithClaims(te))
+
+			// If Tenant's Valid method returns false an error will be set as well, hence there is no need
+			// to additionally check the parsed token for "Valid"
+			if err != nil {
+				level.Info(logger).Log("msg", "invalid bearer token", "err", err.Error())
+				http.Error(w, "Invalid bearer token", http.StatusUnauthorized)
+				authFailures.WithLabelValues("token_not_valid").Inc()
+				return
+			}
+
+			tenantID, err := extractTenantID(te, tenantIDClaim)
+			if err != nil {
+				level.Info(logger).Log("msg", "invalid tenant id", "err", err.Error())
+				http.Error(w, "Invalid Tenant ID", http.StatusUnauthorized)
+				authFailures.WithLabelValues("tenant_id_not_valid").Inc()
+				return
+			}
+
+			// Token is valid
+			authSuccess.WithLabelValues(tenantID).Inc()
+			r.Header.Set("X-Scope-OrgID", tenantID)
 			next.ServeHTTP(w, r)
-			return
-		}
-		logger := klog.With(log.WithContext(r.Context(), log.Logger), "ip_address", r.RemoteAddr)
-		level.Debug(logger).Log("msg", "authenticating request", "route", r.RequestURI)
-
-		if !requestContainsToken(r, headers) {
-			level.Info(logger).Log("msg", "no bearer token provided")
-			http.Error(w, "No bearer token provided", http.StatusUnauthorized)
-			authFailures.WithLabelValues("no_token").Inc()
-			return
-		}
-
-		// Try to parse and validate JWT
-		te := jwt.MapClaims{}
-		_, err := jwtReq.ParseFromRequest(
-			r,
-			authorizationHeaderExtractor,
-			newKeyfunc(jwtSecret, jwks),
-			jwtReq.WithClaims(te))
-
-		// If Tenant's Valid method returns false an error will be set as well, hence there is no need
-		// to additionally check the parsed token for "Valid"
-		if err != nil {
-			level.Info(logger).Log("msg", "invalid bearer token", "err", err.Error())
-			http.Error(w, "Invalid bearer token", http.StatusUnauthorized)
-			authFailures.WithLabelValues("token_not_valid").Inc()
-			return
-		}
-
-		tenantID, err := extractTenantID(te, tenantIDClaim)
-		if err != nil {
-			level.Info(logger).Log("msg", "invalid tenant id", "err", err.Error())
-			http.Error(w, "Invalid Tenant ID", http.StatusUnauthorized)
-			authFailures.WithLabelValues("tenant_id_not_valid").Inc()
-			return
-		}
-
-		// Token is valid
-		authSuccess.WithLabelValues(tenantID).Inc()
-		r.Header.Set("X-Scope-OrgID", tenantID)
-		next.ServeHTTP(w, r)
+		})
 	})
-})
+}
 
 func newKeyfunc(jwtSecret string, jwks *keyfunc.JWKS) jwt.Keyfunc {
 	return func(token *jwt.Token) (interface{}, error) {
