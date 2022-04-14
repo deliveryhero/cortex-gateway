@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/MicahParks/keyfunc"
 	"github.com/cortexproject/cortex/pkg/util/log"
 	klog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -50,6 +51,7 @@ var AuthenticateTenant = middleware.Func(func(next http.Handler) http.Handler {
 	}
 	headers := append(extraHeaders, "Authorization")
 	authorizationHeaderExtractor := buildHeaderExtractor(extraHeaders)
+	jwks := newJWKS()
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -73,15 +75,7 @@ var AuthenticateTenant = middleware.Func(func(next http.Handler) http.Handler {
 		_, err := jwtReq.ParseFromRequest(
 			r,
 			authorizationHeaderExtractor,
-			func(token *jwt.Token) (interface{}, error) {
-				// Only HMAC algorithms accepted - algorithm validation is super important!
-				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-					level.Info(logger).Log("msg", "unexpected signing method", "used_method", token.Header["alg"])
-					return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
-				}
-
-				return []byte(jwtSecret), nil
-			},
+			newKeyfunc(jwtSecret, jwks),
 			jwtReq.WithClaims(te))
 
 		// If Tenant's Valid method returns false an error will be set as well, hence there is no need
@@ -107,6 +101,19 @@ var AuthenticateTenant = middleware.Func(func(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 })
+
+func newKeyfunc(jwtSecret string, jwks *keyfunc.JWKS) jwt.Keyfunc {
+	return func(token *jwt.Token) (interface{}, error) {
+		keyAlg := token.Method.Alg()
+		switch keyAlg {
+		case "RS256", "RS384", "RS512", "EdDSA", "ES256", "ES384", "ES512", "PS256", "PS384", "PS512":
+			return jwks.Keyfunc(token)
+		case "HS256", "HS384", "HS512":
+			return []byte(jwtSecret), nil
+		}
+		return nil, fmt.Errorf("Unexpected signing method: %v", keyAlg)
+	}
+}
 
 func extractTenantID(claim jwt.MapClaims, tenantIDClaim string) (string, error) {
 	tenantID, tenantIDClaimFound := claim[tenantIDClaim]

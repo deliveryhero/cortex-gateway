@@ -3,6 +3,7 @@ module github.com/deliveryhero/cortex-gateway
 go 1.18
 
 require (
+	github.com/MicahParks/keyfunc v1.0.3
 	github.com/cortexproject/cortex v1.11.1
 	github.com/go-kit/kit v0.12.0
 	github.com/golang-jwt/jwt/v4 v4.4.1
