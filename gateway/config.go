@@ -74,5 +74,18 @@ func (cfg *Config) Validate() error {
 	if !strings.HasPrefix(cfg.AlertManagerAddress, "http") {
 		return fmt.Errorf("alertmanager address must start with a valid scheme (http/https). Given is '%v'", cfg.AlertManagerAddress)
 	}
+
+	if cfg.JwtSecret == "" && cfg.JwksURL == "" {
+		return fmt.Errorf("you must set -gateway.auth.jwt-secret and/or -gateway.auth.jwks-url")
+	}
+
+	if cfg.JwksRefreshInterval <= 0 {
+		return fmt.Errorf("JWKS background refresh interval must positive. Given is '%v'", cfg.JwksRefreshInterval)
+	}
+
+	if cfg.JwksRefreshTimeout <= 0 {
+		return fmt.Errorf("JWKS background refresh timeout must positive. Given is '%v'", cfg.JwksRefreshTimeout)
+	}
+
 	return nil
 }
