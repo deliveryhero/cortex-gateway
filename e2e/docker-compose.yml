@@ -1,23 +1,63 @@
 version: "3.1"
 
 services:
-  prometheus:
-    image: prom/prometheus:v2.19.0
+  agent:
+    image: grafana/agent:v0.23.0
     volumes:
-      - ./prometheus/:/etc/prometheus/
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
-      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
-      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - ./agent:/etc/agent-config
+    entrypoint:
+      - /bin/agent
+      - -config.file=/etc/agent-config/config.yaml
+      - -metrics.wal-directory=/tmp/agent/wal
+      - -config.expand-env
+      - -config.enable-read-api
+    environment:
+      HOSTNAME: agent
+      REMOTE_WRITE_HOST: host.docker.internal:8900
+      OAUTH_CLIENT_ID: $AGENT_CLIENT_ID
+      OAUTH_CLIENT_SECRET: $OAUTH_CLIENT_SECRET
+      OAUTH_TOKEN_URL: $OAUTH_TOKEN_URL
+      OAUTH_AUDIENCE: $OAUTH_AUDIENCE
+      BEARER_TOKEN: $BEARER_TOKEN
     ports:
-      - 9090:9090
-    restart: always
+      - "12345:12345"
+
+  cortex:
+    image: cortexproject/cortex:v1.11.1
+    volumes:
+      - ./cortex:/etc/cortex-config
+      - cortex:/data
+    entrypoint:
+      - /bin/cortex
+      - -config.file=/etc/cortex-config/config.yaml
+    ports:
+      - "9009:9009"
+
   grafana:
-    image: grafana/grafana
+    image: grafana/grafana:8.4.5
     volumes:
       - ./grafana/datasources:/etc/grafana/provisioning/datasources
     user: "104"
     ports:
       - 3000:3000
     restart: always
+    environment:
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_USERS_AUTO_ASSIGN_ORG_ROLE: "Viewer"
+      GF_USERS_VIEWERS_CAN_EDIT: "false"
+      GF_SMTP_ENABLED: "false"
+      GF_AUTH_GENERIC_OAUTH_ENABLED: "true"
+      GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP: "true"
+      GF_AUTH_GENERIC_OAUTH_NAME: "Auth0"
+      GF_AUTH_GENERIC_OAUTH_SCOPES: "openid profile email"
+      GF_AUTH_GENERIC_OAUTH_USE_PKCE: "true"
+      GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH: $GRAFANA_ROLE_ATTRIBUTE_PATH
+      GF_AUTH_GENERIC_OAUTH_CLIENT_ID: $GRAFANA_CLIENT_ID
+      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: $GRAFANA_CLIENT_SECRET
+      GF_AUTH_GENERIC_OAUTH_AUTH_URL: $OAUTH_AUTH_URL
+      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: $OAUTH_TOKEN_URL
+      GF_AUTH_GENERIC_OAUTH_API_URL: $OAUTH_API_URL
+
+volumes:
+  cortex:

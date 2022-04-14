@@ -58,6 +58,7 @@ func (g *Gateway) Start() {
 func (g *Gateway) registerRoutes() {
 	g.server.HTTP.Path("/all_user_stats").HandlerFunc(g.distributorProxy.Handler)
 	g.server.HTTP.Path("/api/prom/push").Handler(AuthenticateTenant.Wrap(http.HandlerFunc(g.distributorProxy.Handler)))
+	g.server.HTTP.Path("/api/v1/push").Handler(AuthenticateTenant.Wrap(http.HandlerFunc(g.distributorProxy.Handler)))
 	g.server.HTTP.PathPrefix("/api/prom/api/v1/alerts").Handler(AuthenticateTenant.Wrap(http.HandlerFunc(g.rulerProxy.Handler)))
 	g.server.HTTP.PathPrefix("/api/prom/api/v1/rules").Handler(AuthenticateTenant.Wrap(http.HandlerFunc(g.rulerProxy.Handler)))
 	g.server.HTTP.PathPrefix("/api/v1/alerts").Handler(AuthenticateTenant.Wrap(http.HandlerFunc(g.alertManagerProxy.Handler)))

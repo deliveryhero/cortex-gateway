@@ -1,0 +1,30 @@
+server:
+  log_level: debug
+
+metrics:
+  scraping_service:
+    enabled: false
+  global:
+    scrape_interval: 15s # By default, scrape targets every 15 seconds.
+    scrape_timeout: 15s
+    evaluation_interval: 15s
+    # remote_write:
+    #   - url: http://${REMOTE_WRITE_HOST:-host.docker.internal}/api/v1/push
+    #     oauth2:
+    #       client_id: ${OAUTH_CLIENT_ID}
+    #       client_secret: ${OAUTH_CLIENT_SECRET}
+    #       token_url: ${OAUTH_TOKEN_URL}
+    #       endpoint_params:
+    #         audience: ${OAUTH_AUDIENCE}
+    #   - url: http://${REMOTE_WRITE_HOST:-host.docker.internal}/api/v1/push
+    #     bearer_token: ${BEARER_TOKEN}
+    #     queue_config:
+    #       max_shards: 20
+    #       max_samples_per_send: 1000
+
+integrations:
+  agent:
+    enabled: true
+
+  node_exporter:
+    enabled: true
