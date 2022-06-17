@@ -75,8 +75,8 @@ func (cfg *Config) Validate() error {
 		return fmt.Errorf("alertmanager address must start with a valid scheme (http/https). Given is '%v'", cfg.AlertManagerAddress)
 	}
 
-	if cfg.JwtSecret == "" && cfg.JwksURL == "" {
-		return fmt.Errorf("you must set -gateway.auth.jwt-secret and/or -gateway.auth.jwks-url")
+	if cfg.JwtSecret == "" && cfg.JwksURL == "" && cfg.TenantName == "" {
+		return fmt.Errorf("you must set -gateway.auth.jwt-secret and/or -gateway.auth.jwks-url or -gateway.auth.tenantName")
 	}
 
 	if cfg.JwksRefreshInterval <= 0 {
