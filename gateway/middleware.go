@@ -1,15 +1,14 @@
 package gateway
 
 import (
-	"flag"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/MicahParks/keyfunc"
 	"github.com/cortexproject/cortex/pkg/util/log"
-	klog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	klog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	jwt "github.com/golang-jwt/jwt/v4"
 	jwtReq "github.com/golang-jwt/jwt/v4/request"
 	"github.com/prometheus/client_golang/prometheus"
@@ -18,11 +17,6 @@ import (
 )
 
 var (
-	jwtSecret       string
-	extraHeadersArg string
-	tenantName      string
-	tenantIDClaim   string
-
 	authFailures = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "cortex_gateway",
 		Name:      "failed_authentications_total",
@@ -35,72 +29,75 @@ var (
 	}, []string{"tenant"})
 )
 
-func init() {
-	flag.StringVar(&tenantName, "gateway.auth.tenant-name", "", "Tenant name to use when jwt auth disabled")
-	flag.StringVar(&jwtSecret, "gateway.auth.jwt-secret", "", "Secret to sign JSON Web Tokens")
-	flag.StringVar(&extraHeadersArg, "gateway.auth.jwt-extra-headers", "", "A comma separated list of additional headers to scan for JSON Web Tokens presence")
-	flag.StringVar(&tenantIDClaim, "gateway.auth.tenant-id-claim", "tenant_id", "The name of the Tenant ID Claim. Defaults to tenant_id")
-}
-
 // AuthenticateTenant validates the Bearer Token and attaches the TenantID to the request
-var AuthenticateTenant = middleware.Func(func(next http.Handler) http.Handler {
+func newAuthenticationMiddleware(cfg Config) middleware.Func {
+	if cfg.TenantName != "" {
+		return newStaticTenantNameMiddleware(cfg.TenantName)
+	}
 
 	var extraHeaders []string
-	if extraHeadersArg != "" {
-		extraHeaders = strings.Split(extraHeadersArg, ",")
+	if cfg.ExtraHeaders != "" {
+		extraHeaders = strings.Split(cfg.ExtraHeaders, ",")
 	}
 	headers := append(extraHeaders, "Authorization")
 	authorizationHeaderExtractor := buildHeaderExtractor(extraHeaders)
-	jwks := newJWKS()
+	jwks := newJWKS(cfg)
 
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return middleware.Func(func(next http.Handler) http.Handler {
 
-		if tenantName != "" {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+			logger := klog.With(log.WithContext(r.Context(), log.Logger), "ip_address", r.RemoteAddr)
+			level.Debug(logger).Log("msg", "authenticating request", "route", r.RequestURI)
+
+			if !requestContainsToken(r, headers) {
+				level.Info(logger).Log("msg", "no bearer token provided")
+				http.Error(w, "No bearer token provided", http.StatusUnauthorized)
+				authFailures.WithLabelValues("no_token").Inc()
+				return
+			}
+
+			// Try to parse and validate JWT
+			te := jwt.MapClaims{}
+			_, err := jwtReq.ParseFromRequest(
+				r,
+				authorizationHeaderExtractor,
+				newKeyfunc(cfg.JwtSecret, jwks),
+				jwtReq.WithClaims(te))
+
+			// If Tenant's Valid method returns false an error will be set as well, hence there is no need
+			// to additionally check the parsed token for "Valid"
+			if err != nil {
+				level.Info(logger).Log("msg", "invalid bearer token", "err", err.Error())
+				http.Error(w, "Invalid bearer token", http.StatusUnauthorized)
+				authFailures.WithLabelValues("token_not_valid").Inc()
+				return
+			}
+
+			tenantID, err := extractTenantID(te, cfg.TenantIDClaim)
+			if err != nil {
+				level.Info(logger).Log("msg", "invalid tenant id", "err", err.Error())
+				http.Error(w, "Invalid Tenant ID", http.StatusUnauthorized)
+				authFailures.WithLabelValues("tenant_id_not_valid").Inc()
+				return
+			}
+
+			// Token is valid
+			authSuccess.WithLabelValues(tenantID).Inc()
+			r.Header.Set("X-Scope-OrgID", tenantID)
+			next.ServeHTTP(w, r)
+		})
+	})
+}
+
+func newStaticTenantNameMiddleware(tenantName string) middleware.Func {
+	return middleware.Func(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			r.Header.Set("X-Scope-OrgID", tenantName)
 			next.ServeHTTP(w, r)
-			return
-		}
-		logger := klog.With(log.WithContext(r.Context(), log.Logger), "ip_address", r.RemoteAddr)
-		level.Debug(logger).Log("msg", "authenticating request", "route", r.RequestURI)
-
-		if !requestContainsToken(r, headers) {
-			level.Info(logger).Log("msg", "no bearer token provided")
-			http.Error(w, "No bearer token provided", http.StatusUnauthorized)
-			authFailures.WithLabelValues("no_token").Inc()
-			return
-		}
-
-		// Try to parse and validate JWT
-		te := jwt.MapClaims{}
-		_, err := jwtReq.ParseFromRequest(
-			r,
-			authorizationHeaderExtractor,
-			newKeyfunc(jwtSecret, jwks),
-			jwtReq.WithClaims(te))
-
-		// If Tenant's Valid method returns false an error will be set as well, hence there is no need
-		// to additionally check the parsed token for "Valid"
-		if err != nil {
-			level.Info(logger).Log("msg", "invalid bearer token", "err", err.Error())
-			http.Error(w, "Invalid bearer token", http.StatusUnauthorized)
-			authFailures.WithLabelValues("token_not_valid").Inc()
-			return
-		}
-
-		tenantID, err := extractTenantID(te, tenantIDClaim)
-		if err != nil {
-			level.Info(logger).Log("msg", "invalid tenant id", "err", err.Error())
-			http.Error(w, "Invalid Tenant ID", http.StatusUnauthorized)
-			authFailures.WithLabelValues("tenant_id_not_valid").Inc()
-			return
-		}
-
-		// Token is valid
-		authSuccess.WithLabelValues(tenantID).Inc()
-		r.Header.Set("X-Scope-OrgID", tenantID)
-		next.ServeHTTP(w, r)
+		})
 	})
-})
+}
 
 func newKeyfunc(jwtSecret string, jwks *keyfunc.JWKS) jwt.Keyfunc {
 	return func(token *jwt.Token) (interface{}, error) {
