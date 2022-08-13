@@ -1,6 +1,6 @@
-module github.com/deliveryhero/cortex-gateway
+module github.com/celest-io/mimir-gateway
 
-go 1.18
+go 1.19
 
 require (
 	github.com/MicahParks/keyfunc v1.0.3
