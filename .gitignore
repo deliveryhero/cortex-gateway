@@ -18,5 +18,5 @@
 # Mac OS
 .DS_STORE
 
-cortex-gateway
-mimir-gateway
+./cortex-gateway
+./mimir-gateway
