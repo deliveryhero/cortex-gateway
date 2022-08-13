@@ -3,15 +3,15 @@ module github.com/celest-io/mimir-gateway
 go 1.19
 
 require (
-	github.com/MicahParks/keyfunc v1.0.3
-	github.com/cortexproject/cortex v1.11.1
-	github.com/go-kit/log v0.2.0
-	github.com/golang-jwt/jwt/v4 v4.4.1
-	github.com/grafana/dskit v0.0.0-20220331160727-49faf69f72ca
+	github.com/MicahParks/keyfunc v1.2.2
+	github.com/cortexproject/cortex v1.13.0
+	github.com/go-kit/log v0.2.1
+	github.com/golang-jwt/jwt/v4 v4.4.2
+	github.com/grafana/dskit v0.0.0-20220810151300-402124111943
 	github.com/opentracing-contrib/go-stdlib v1.0.0
 	github.com/opentracing/opentracing-go v1.2.0
-	github.com/prometheus/client_golang v1.12.1
-	github.com/weaveworks/common v0.0.0-20220302160857-00e2e238a230
+	github.com/prometheus/client_golang v1.13.0
+	github.com/weaveworks/common v0.0.0-20220810113439-c65105d60b18
 	google.golang.org/grpc v1.45.0
 )
 
@@ -32,9 +32,9 @@ require (
 	github.com/opentracing-contrib/go-grpc v0.0.0-20210225150812-73cb765af46e // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
-	github.com/prometheus/common v0.33.0 // indirect
+	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/exporter-toolkit v0.7.1 // indirect
-	github.com/prometheus/procfs v0.7.3 // indirect
+	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/sercand/kuberesolver v2.4.0+incompatible // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/uber/jaeger-client-go v2.30.0+incompatible // indirect
@@ -44,10 +44,10 @@ require (
 	golang.org/x/crypto v0.0.0-20220331220935-ae2d96664a29 // indirect
 	golang.org/x/net v0.0.0-20220403103023-749bd193bc2b // indirect
 	golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a // indirect
-	golang.org/x/sys v0.0.0-20220405210540-1e041c57c461 // indirect
+	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20220405205423-9d709892a2bf // indirect
-	google.golang.org/protobuf v1.28.0 // indirect
+	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
