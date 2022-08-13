@@ -11,7 +11,7 @@ strategy:
     maxSurge: 25%
 
 image:
-  repository: ghcr.io/celest-io/mimir-gateway/mimir-gateway
+  repository: ghcr.io/celest-io/mimir-gateway
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""

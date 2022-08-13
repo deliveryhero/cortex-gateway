@@ -6,7 +6,6 @@ on:
 
 jobs:
   release:
-    if: github.repository == "celest-io/mimir-gateway"
     permissions:
       contents: write
     runs-on: ubuntu-latest
