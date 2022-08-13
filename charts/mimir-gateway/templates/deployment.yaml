@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mimir-gateway.fullname" . }}
+  labels:
+    {{- include "mimir-gateway.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+{{- with .Values.strategy }}
+  strategy:
+{{ toYaml . | trim | indent 4 }}
+{{- end }}
+  selector:
+    matchLabels:
+      {{- include "mimir-gateway.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "mimir-gateway.selectorLabels" . | nindent 8 }}
+        {{- if .Values.extraLabels }}
+          {{ toYaml .Values.extraLabels | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "mimir-gateway.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+          - --gateway.distributor.address={{ .Values.args.distributorAddress }}
+          - --gateway.query-frontend.address={{ .Values.args.queryfrontendAddress }}
+          - --gateway.ruler.address={{ .Values.args.rulerAddress }}
+          - --gateway.alertmanager.address={{ .Values.args.alertmanagerAddress }}
+          {{- with .Values.args.jwtSecret }}
+          - --gateway.auth.jwt-secret={{ . }}
+          {{- end }}
+          {{- with .Values.args.tenantName }}
+          - --gateway.auth.tenant-name={{ . }}
+          {{- end }}
+          {{- with .Values.args.jwtExtraHeaders }}
+          - --gateway.auth.jwt-extra-headers={{ . }}
+          {{- end }}
+          {{- with .Values.args.tenantIdClaim }}
+          - --gateway.auth.tenant-id-claim={{ . }}
+          {{- end }}
+          {{- with .Values.args.jwksURL }}
+          - --gateway.auth.jwks-url={{ . }}
+          {{- end }}
+          {{- with .Values.args.jwksRefreshEnabled }}
+          - --gateway.auth.jwks-refresh-enabled
+          {{- end }}
+          {{- with .Values.args.jwksRefreshInterval }}
+          - --gateway.auth.jwks-refresh-interval={{ . }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
