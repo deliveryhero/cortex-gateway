@@ -39,7 +39,9 @@ func newAuthenticationMiddleware(cfg Config) middleware.Func {
 	if cfg.ExtraHeaders != "" {
 		extraHeaders = strings.Split(cfg.ExtraHeaders, ",")
 	}
-	headers := append(extraHeaders, "Authorization")
+	headers := make([]string, 0, len(extraHeaders)+1)
+	headers = append(headers, extraHeaders...)
+	headers = append(headers, "Authorization")
 	authorizationHeaderExtractor := buildHeaderExtractor(extraHeaders)
 	jwks := newJWKS(cfg)
 
@@ -52,14 +54,12 @@ func newAuthenticationMiddleware(cfg Config) middleware.Func {
 	}
 
 	return middleware.Func(func(next http.Handler) http.Handler {
-
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 			logger := klog.With(log.WithContext(r.Context(), log.Logger), "ip_address", r.RemoteAddr)
-			level.Debug(logger).Log("msg", "authenticating request", "route", r.RequestURI)
+			_ = level.Debug(logger).Log("msg", "authenticating request", "route", r.RequestURI)
 
 			if !requestContainsToken(r, headers) {
-				level.Info(logger).Log("msg", "no bearer token provided")
+				_ = level.Info(logger).Log("msg", "no bearer token provided")
 				http.Error(w, "No bearer token provided", http.StatusUnauthorized)
 				authFailures.WithLabelValues("no_token").Inc()
 				return
@@ -80,7 +80,7 @@ func newAuthenticationMiddleware(cfg Config) middleware.Func {
 			// If Tenant's Valid method returns false an error will be set as well, hence there is no need
 			// to additionally check the parsed token for "Valid"
 			if err != nil {
-				level.Info(logger).Log("msg", "invalid bearer token", "err", err.Error())
+				_ = level.Info(logger).Log("msg", "invalid bearer token", "err", err.Error())
 				http.Error(w, "Invalid bearer token", http.StatusUnauthorized)
 				authFailures.WithLabelValues("token_not_valid").Inc()
 				return
@@ -88,7 +88,7 @@ func newAuthenticationMiddleware(cfg Config) middleware.Func {
 
 			tenantID, err := extractTenantID(te, cfg.TenantIDClaim)
 			if err != nil {
-				level.Info(logger).Log("msg", "invalid tenant id", "err", err.Error())
+				_ = level.Info(logger).Log("msg", "invalid tenant id", "err", err.Error())
 				http.Error(w, "Invalid Tenant ID", http.StatusUnauthorized)
 				authFailures.WithLabelValues("tenant_id_not_valid").Inc()
 				return
@@ -123,18 +123,18 @@ func newKeyfunc(jwtSecret string, jwks *keyfunc.JWKS) jwt.Keyfunc {
 			}
 			return []byte(jwtSecret), nil
 		}
-		return nil, fmt.Errorf("Unexpected signing method: %v", keyAlg)
+		return nil, fmt.Errorf("unexpected signing method: %v", keyAlg)
 	}
 }
 
 func extractTenantID(claim jwt.MapClaims, tenantIDClaim string) (string, error) {
 	tenantID, tenantIDClaimFound := claim[tenantIDClaim]
 	if !tenantIDClaimFound {
-		return "", fmt.Errorf("Claim %v not found", tenantIDClaim)
+		return "", fmt.Errorf("claim %v not found", tenantIDClaim)
 	}
 	tenantIDStr := tenantID.(string)
 	if tenantIDStr == "" {
-		return "", fmt.Errorf("Empty Tenant ID")
+		return "", fmt.Errorf("empty tenant id")
 	}
 	return tenantIDStr, nil
 }

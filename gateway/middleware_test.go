@@ -185,7 +185,8 @@ func Test_newAuthenticationMiddleware_Vulnerability(t *testing.T) {
 	mw := newAuthenticationMiddleware(cfg)
 	innerHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(r.Header.Get("X-Scope-OrgID")))
+		//nolint:gosec // G705: XSS is acceptable in test mocks
+		_, _ = w.Write([]byte(r.Header.Get("X-Scope-OrgID")))
 	})
 	handler := mw(innerHandler)
 
@@ -193,6 +194,7 @@ func Test_newAuthenticationMiddleware_Vulnerability(t *testing.T) {
 	// Header: {"alg":"HS256","typ":"JWT"} -> eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
 	// Payload: {"tenant_id":"victim-tenant"} -> eyJ0ZW5hbnRfaWQiOiJ2aWN0aW0tdGVuYW50In0
 	// HMAC-SHA256(header.payload, "") -> knCgSO_gKypWKMl-iTwBENmITbb4Aqh4tTx6ncKDzu8
+	//nolint:gosec // G101: dummy token for testing
 	forgedToken := "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRfaWQiOiJ2aWN0aW0tdGVuYW50In0.knCgSO_gKypWKMl-iTwBENmITbb4Aqh4tTx6ncKDzu8"
 
 	req := httptest.NewRequest(http.MethodGet, "/prometheus/api/v1/query", nil)
@@ -222,7 +224,8 @@ func Test_newAuthenticationMiddleware_SymmetricValid(t *testing.T) {
 	mw := newAuthenticationMiddleware(cfg)
 	innerHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(r.Header.Get("X-Scope-OrgID")))
+		//nolint:gosec // G705: XSS is acceptable in test mocks
+		_, _ = w.Write([]byte(r.Header.Get("X-Scope-OrgID")))
 	})
 	handler := mw(innerHandler)
 
@@ -249,6 +252,7 @@ func Test_newAuthenticationMiddleware_SymmetricValid(t *testing.T) {
 	}
 
 	// 2. Test empty secret signature should fail
+	//nolint:gosec // G101: dummy token for testing
 	forgedToken := "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRfaWQiOiJ2aWN0aW0tdGVuYW50In0.knCgSO_gKypWKMl-iTwBENmITbb4Aqh4tTx6ncKDzu8"
 	req2 := httptest.NewRequest(http.MethodGet, "/query", nil)
 	req2.Header.Set("Authorization", forgedToken)
