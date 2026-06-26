@@ -10,6 +10,16 @@ import (
 	jwtReq "github.com/golang-jwt/jwt/v4/request"
 )
 
+const (
+	// Standard test token used across contains-token tests
+	//nolint:gosec // G101: dummy token for testing
+	testToken = "eyJhbGciOiJIUzI1NiJ9.eyJ0ZW5hbnRfaWQiOiIxMjMiLCJ2ZXJzaW9uIjoiMSJ9.QmTSzJbvlB5_QmSmYb3nrpnUK4xuK9iWACc5xl8mmLU"
+
+	// Forged HS256 token with empty HMAC signature, setting victim-tenant
+	//nolint:gosec // G101: dummy token for testing
+	forgedEmptyKeyToken = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRfaWQiOiJ2aWN0aW0tdGVuYW50In0.knCgSO_gKypWKMl-iTwBENmITbb4Aqh4tTx6ncKDzu8"
+)
+
 func Test_requestContainsToken(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -21,7 +31,7 @@ func Test_requestContainsToken(t *testing.T) {
 			name: "Get token using default Authorization header",
 			r: &http.Request{
 				Header: map[string][]string{
-					"Authorization": {"Bearer: eyJhbGciOiJIUzI1NiJ9.eyJ0ZW5hbnRfaWQiOiIxMjMiLCJ2ZXJzaW9uIjoiMSJ9.QmTSzJbvlB5_QmSmYb3nrpnUK4xuK9iWACc5xl8mmLU"},
+					"Authorization": {"Bearer: " + testToken},
 				},
 			},
 			headers: []string{"Authorization"},
@@ -31,8 +41,8 @@ func Test_requestContainsToken(t *testing.T) {
 			name: "Get token from X-Id-Token header first then Authorization (both present)",
 			r: &http.Request{
 				Header: map[string][]string{
-					"Authorization": {"Bearer: eyJhbGciOiJIUzI1NiJ9.eyJ0ZW5hbnRfaWQiOiIxMjMiLCJ2ZXJzaW9uIjoiMSJ9.QmTSzJbvlB5_QmSmYb3nrpnUK4xuK9iWACc5xl8mmLU"},
-					"X-Id-Token":    {"eyJhbGciOiJIUzI1NiJ9.eyJ0ZW5hbnRfaWQiOiIxMjMiLCJ2ZXJzaW9uIjoiMSJ9.QmTSzJbvlB5_QmSmYb3nrpnUK4xuK9iWACc5xl8mmLU"},
+					"Authorization": {"Bearer: " + testToken},
+					"X-Id-Token":    {testToken},
 				},
 			},
 			headers: []string{"X-Id-Token", "Authorization"},
@@ -42,7 +52,7 @@ func Test_requestContainsToken(t *testing.T) {
 			name: "Get token from X-Id-Token header first then Authorization (X-Id-Token present)",
 			r: &http.Request{
 				Header: map[string][]string{
-					"X-Id-Token": {"eyJhbGciOiJIUzI1NiJ9.eyJ0ZW5hbnRfaWQiOiIxMjMiLCJ2ZXJzaW9uIjoiMSJ9.QmTSzJbvlB5_QmSmYb3nrpnUK4xuK9iWACc5xl8mmLU"},
+					"X-Id-Token": {testToken},
 				},
 			},
 			headers: []string{"X-Id-Token", "Authorization"},
@@ -52,8 +62,8 @@ func Test_requestContainsToken(t *testing.T) {
 			name: "Get token using lowercase headers",
 			r: &http.Request{
 				Header: map[string][]string{
-					"Authorization": {"Bearer: eyJhbGciOiJIUzI1NiJ9.eyJ0ZW5hbnRfaWQiOiIxMjMiLCJ2ZXJzaW9uIjoiMSJ9.QmTSzJbvlB5_QmSmYb3nrpnUK4xuK9iWACc5xl8mmLU"},
-					"X-Id-Token":    {"eyJhbGciOiJIUzI1NiJ9.eyJ0ZW5hbnRfaWQiOiIxMjMiLCJ2ZXJzaW9uIjoiMSJ9.QmTSzJbvlB5_QmSmYb3nrpnUK4xuK9iWACc5xl8mmLU"},
+					"Authorization": {"Bearer: " + testToken},
+					"X-Id-Token":    {testToken},
 				},
 			},
 			headers: []string{"x-id-token", "authorization"},
@@ -170,64 +180,8 @@ func Test_extractTenantID(t *testing.T) {
 	}
 }
 
-func Test_newAuthenticationMiddleware_Vulnerability(t *testing.T) {
-	// 1. Setup middleware in JWKS-only mode (JwtSecret is empty)
-	cfg := Config{
-		DistributorAddress:   "http://localhost:8080",
-		QueryFrontendAddress: "http://localhost:8080",
-		RulerAddress:         "http://localhost:8080",
-		AlertManagerAddress:  "http://localhost:8080",
-		TenantIDClaim:        "tenant_id",
-		JwtSecret:            "",
-		JwksURL:              "", // JwksURL is empty so newJWKS returns empty keys
-	}
-
-	mw := newAuthenticationMiddleware(cfg)
-	innerHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		//nolint:gosec // G705: XSS is acceptable in test mocks
-		_, _ = w.Write([]byte(r.Header.Get("X-Scope-OrgID")))
-	})
-	handler := mw(innerHandler)
-
-	// A forged token signed with HS256 and an empty key:
-	// Header: {"alg":"HS256","typ":"JWT"} -> eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
-	// Payload: {"tenant_id":"victim-tenant"} -> eyJ0ZW5hbnRfaWQiOiJ2aWN0aW0tdGVuYW50In0
-	// HMAC-SHA256(header.payload, "") -> knCgSO_gKypWKMl-iTwBENmITbb4Aqh4tTx6ncKDzu8
-	//nolint:gosec // G101: dummy token for testing
-	forgedToken := "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRfaWQiOiJ2aWN0aW0tdGVuYW50In0.knCgSO_gKypWKMl-iTwBENmITbb4Aqh4tTx6ncKDzu8"
-
-	req := httptest.NewRequest(http.MethodGet, "/prometheus/api/v1/query", nil)
-	req.Header.Set("Authorization", forgedToken)
-	rec := httptest.NewRecorder()
-
-	handler.ServeHTTP(rec, req)
-
-	if rec.Code == http.StatusOK {
-		t.Errorf("Vulnerability present: request with empty-key HS256 token was accepted! Injected tenant: %q", rec.Body.String())
-	} else if rec.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status 401 Unauthorized, got %d", rec.Code)
-	}
-}
-
-func Test_newAuthenticationMiddleware_SymmetricValid(t *testing.T) {
+func Test_newAuthenticationMiddleware(t *testing.T) {
 	secret := "my-very-strong-secret-key-that-is-long"
-	cfg := Config{
-		DistributorAddress:   "http://localhost:8080",
-		QueryFrontendAddress: "http://localhost:8080",
-		RulerAddress:         "http://localhost:8080",
-		AlertManagerAddress:  "http://localhost:8080",
-		TenantIDClaim:        "tenant_id",
-		JwtSecret:            secret,
-	}
-
-	mw := newAuthenticationMiddleware(cfg)
-	innerHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		//nolint:gosec // G705: XSS is acceptable in test mocks
-		_, _ = w.Write([]byte(r.Header.Get("X-Scope-OrgID")))
-	})
-	handler := mw(innerHandler)
 
 	// Create a valid HS256 token signed with the correct secret
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -238,28 +192,79 @@ func Test_newAuthenticationMiddleware_SymmetricValid(t *testing.T) {
 		t.Fatalf("Failed to sign token: %v", err)
 	}
 
-	// 1. Test correct secret
-	req := httptest.NewRequest(http.MethodGet, "/query", nil)
-	req.Header.Set("Authorization", "Bearer "+tokenString)
-	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Errorf("Expected status 200 OK, got %d", rec.Code)
+	tests := []struct {
+		name           string
+		cfg            Config
+		authHeader     string
+		expectedStatus int
+		expectedBody   string
+	}{
+		{
+			name: "Vulnerability test: HS256 token with empty key under JWKS-only configuration is rejected",
+			cfg: Config{
+				TenantIDClaim: "tenant_id",
+				JwtSecret:     "",
+				JwksURL:       "",
+			},
+			authHeader:     forgedEmptyKeyToken,
+			expectedStatus: http.StatusUnauthorized,
+			expectedBody:   "",
+		},
+		{
+			name: "Symmetric: valid token with correct secret succeeds",
+			cfg: Config{
+				TenantIDClaim: "tenant_id",
+				JwtSecret:     secret,
+			},
+			authHeader:     "Bearer " + tokenString,
+			expectedStatus: http.StatusOK,
+			expectedBody:   "valid-tenant",
+		},
+		{
+			name: "Symmetric: empty-key forged token under active secret configuration fails",
+			cfg: Config{
+				TenantIDClaim: "tenant_id",
+				JwtSecret:     secret,
+			},
+			authHeader:     forgedEmptyKeyToken,
+			expectedStatus: http.StatusUnauthorized,
+			expectedBody:   "",
+		},
 	}
-	if got := rec.Body.String(); got != "valid-tenant" {
-		t.Errorf("Expected injected tenant 'valid-tenant', got %q", got)
-	}
 
-	// 2. Test empty secret signature should fail
-	//nolint:gosec // G101: dummy token for testing
-	forgedToken := "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRfaWQiOiJ2aWN0aW0tdGVuYW50In0.knCgSO_gKypWKMl-iTwBENmITbb4Aqh4tTx6ncKDzu8"
-	req2 := httptest.NewRequest(http.MethodGet, "/query", nil)
-	req2.Header.Set("Authorization", forgedToken)
-	rec2 := httptest.NewRecorder()
-	handler.ServeHTTP(rec2, req2)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Config{
+				DistributorAddress:   "http://localhost:8080",
+				QueryFrontendAddress: "http://localhost:8080",
+				RulerAddress:         "http://localhost:8080",
+				AlertManagerAddress:  "http://localhost:8080",
+				TenantIDClaim:        tt.cfg.TenantIDClaim,
+				JwtSecret:            tt.cfg.JwtSecret,
+				JwksURL:              tt.cfg.JwksURL,
+			}
+			mw := newAuthenticationMiddleware(cfg)
+			innerHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				//nolint:gosec // G705: XSS is acceptable in test mocks
+				_, _ = w.Write([]byte(r.Header.Get("X-Scope-OrgID")))
+			})
+			handler := mw(innerHandler)
 
-	if rec2.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status 401 Unauthorized for forged token under configured secret, got %d", rec2.Code)
+			req := httptest.NewRequest(http.MethodGet, "/prometheus/api/v1/query", nil)
+			if tt.authHeader != "" {
+				req.Header.Set("Authorization", tt.authHeader)
+			}
+			rec := httptest.NewRecorder()
+
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != tt.expectedStatus {
+				t.Errorf("Expected status %d, got %d", tt.expectedStatus, rec.Code)
+			}
+			if tt.expectedBody != "" && rec.Body.String() != tt.expectedBody {
+				t.Errorf("Expected body %q, got %q", tt.expectedBody, rec.Body.String())
+			}
+		})
 	}
 }
