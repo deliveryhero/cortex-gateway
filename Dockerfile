@@ -1,10 +1,13 @@
-FROM golang:1.18-alpine as builder
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine as builder
 RUN apk update && apk add --no-cache git ca-certificates && update-ca-certificates
 
 WORKDIR /app
 COPY . .
 
-RUN CGO_ENABLED=0 go build -o /go/bin/cortex-gateway
+ARG TARGETOS
+ARG TARGETARCH
+
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /go/bin/cortex-gateway
 
 # executable image
 FROM alpine:3
