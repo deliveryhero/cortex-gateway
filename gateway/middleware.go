@@ -43,6 +43,14 @@ func newAuthenticationMiddleware(cfg Config) middleware.Func {
 	authorizationHeaderExtractor := buildHeaderExtractor(extraHeaders)
 	jwks := newJWKS(cfg)
 
+	var validMethods []string
+	if cfg.JwksURL != "" {
+		validMethods = append(validMethods, "RS256", "RS384", "RS512", "EdDSA", "ES256", "ES384", "ES512", "PS256", "PS384", "PS512")
+	}
+	if cfg.JwtSecret != "" {
+		validMethods = append(validMethods, "HS256", "HS384", "HS512")
+	}
+
 	return middleware.Func(func(next http.Handler) http.Handler {
 
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -59,11 +67,15 @@ func newAuthenticationMiddleware(cfg Config) middleware.Func {
 
 			// Try to parse and validate JWT
 			te := jwt.MapClaims{}
+			parser := &jwt.Parser{
+				ValidMethods: validMethods,
+			}
 			_, err := jwtReq.ParseFromRequest(
 				r,
 				authorizationHeaderExtractor,
 				newKeyfunc(cfg.JwtSecret, jwks),
-				jwtReq.WithClaims(te))
+				jwtReq.WithClaims(te),
+				jwtReq.WithParser(parser))
 
 			// If Tenant's Valid method returns false an error will be set as well, hence there is no need
 			// to additionally check the parsed token for "Valid"
@@ -106,6 +118,9 @@ func newKeyfunc(jwtSecret string, jwks *keyfunc.JWKS) jwt.Keyfunc {
 		case "RS256", "RS384", "RS512", "EdDSA", "ES256", "ES384", "ES512", "PS256", "PS384", "PS512":
 			return jwks.Keyfunc(token)
 		case "HS256", "HS384", "HS512":
+			if jwtSecret == "" {
+				return nil, fmt.Errorf("symmetric signing method %v is not configured", keyAlg)
+			}
 			return []byte(jwtSecret), nil
 		}
 		return nil, fmt.Errorf("Unexpected signing method: %v", keyAlg)
