@@ -16,14 +16,16 @@ import (
 	"github.com/weaveworks/common/middleware"
 )
 
+const metricsNamespace = "cortex_gateway"
+
 var (
 	authFailures = promauto.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "cortex_gateway",
+		Namespace: metricsNamespace,
 		Name:      "failed_authentications_total",
 		Help:      "The total number of failed authentications.",
 	}, []string{"reason"})
 	authSuccess = promauto.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "cortex_gateway",
+		Namespace: metricsNamespace,
 		Name:      "succeeded_authentications_total",
 		Help:      "The total number of succeeded authentications.",
 	}, []string{"tenant"})
@@ -132,7 +134,10 @@ func extractTenantID(claim jwt.MapClaims, tenantIDClaim string) (string, error) 
 	if !tenantIDClaimFound {
 		return "", fmt.Errorf("claim %v not found", tenantIDClaim)
 	}
-	tenantIDStr := tenantID.(string)
+	tenantIDStr, ok := tenantID.(string)
+	if !ok {
+		return "", fmt.Errorf("tenant id claim is not a string")
+	}
 	if tenantIDStr == "" {
 		return "", fmt.Errorf("empty tenant id")
 	}

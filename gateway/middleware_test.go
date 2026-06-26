@@ -10,17 +10,15 @@ import (
 	jwtReq "github.com/golang-jwt/jwt/v4/request"
 )
 
-const (
-	// Standard test token used across contains-token tests
-	//nolint:gosec // G101: dummy token for testing
-	testToken = "eyJhbGciOiJIUzI1NiJ9.eyJ0ZW5hbnRfaWQiOiIxMjMiLCJ2ZXJzaW9uIjoiMSJ9.QmTSzJbvlB5_QmSmYb3nrpnUK4xuK9iWACc5xl8mmLU"
-
-	// Forged HS256 token with empty HMAC signature, setting victim-tenant
-	//nolint:gosec // G101: dummy token for testing
-	forgedEmptyKeyToken = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRfaWQiOiJ2aWN0aW0tdGVuYW50In0.knCgSO_gKypWKMl-iTwBENmITbb4Aqh4tTx6ncKDzu8"
-)
-
 func Test_requestContainsToken(t *testing.T) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"tenant_id": "123",
+		"version":   "1",
+	})
+	testTokenVal, err := token.SignedString([]byte("secret"))
+	if err != nil {
+		t.Fatalf("Failed to generate test token: %v", err)
+	}
 	tests := []struct {
 		name    string
 		r       *http.Request
@@ -31,7 +29,7 @@ func Test_requestContainsToken(t *testing.T) {
 			name: "Get token using default Authorization header",
 			r: &http.Request{
 				Header: map[string][]string{
-					"Authorization": {"Bearer: " + testToken},
+					"Authorization": {"Bearer: " + testTokenVal},
 				},
 			},
 			headers: []string{"Authorization"},
@@ -41,8 +39,8 @@ func Test_requestContainsToken(t *testing.T) {
 			name: "Get token from X-Id-Token header first then Authorization (both present)",
 			r: &http.Request{
 				Header: map[string][]string{
-					"Authorization": {"Bearer: " + testToken},
-					"X-Id-Token":    {testToken},
+					"Authorization": {"Bearer: " + testTokenVal},
+					"X-Id-Token":    {testTokenVal},
 				},
 			},
 			headers: []string{"X-Id-Token", "Authorization"},
@@ -52,7 +50,7 @@ func Test_requestContainsToken(t *testing.T) {
 			name: "Get token from X-Id-Token header first then Authorization (X-Id-Token present)",
 			r: &http.Request{
 				Header: map[string][]string{
-					"X-Id-Token": {testToken},
+					"X-Id-Token": {testTokenVal},
 				},
 			},
 			headers: []string{"X-Id-Token", "Authorization"},
@@ -62,8 +60,8 @@ func Test_requestContainsToken(t *testing.T) {
 			name: "Get token using lowercase headers",
 			r: &http.Request{
 				Header: map[string][]string{
-					"Authorization": {"Bearer: " + testToken},
-					"X-Id-Token":    {testToken},
+					"Authorization": {"Bearer: " + testTokenVal},
+					"X-Id-Token":    {testTokenVal},
 				},
 			},
 			headers: []string{"x-id-token", "authorization"},
@@ -129,6 +127,7 @@ func Test_extractTenantID(t *testing.T) {
 		"tenant_id":                     "1234",
 		"https://example.com/tenant_id": "1234",
 		"empty":                         "",
+		"non_string":                    12345,
 	}
 	tests := []struct {
 		name          string
@@ -165,6 +164,13 @@ func Test_extractTenantID(t *testing.T) {
 			want:          "",
 			wantErr:       true,
 		},
+		{
+			name:          "Non-string tenant id",
+			claim:         claim,
+			tenantIDClaim: "non_string",
+			want:          "",
+			wantErr:       true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -182,6 +188,16 @@ func Test_extractTenantID(t *testing.T) {
 
 func Test_newAuthenticationMiddleware(t *testing.T) {
 	secret := "my-very-strong-secret-key-that-is-long"
+
+	// Generate a forged HS256 empty-key token dynamically on the fly
+	forgedToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"tenant_id": "victim-tenant",
+	})
+	forgedTokenString, err := forgedToken.SignedString([]byte(""))
+	if err != nil {
+		t.Fatalf("Failed to generate forged empty key token: %v", err)
+	}
+	forgedEmptyKeyTokenVal := "Bearer " + forgedTokenString
 
 	// Create a valid HS256 token signed with the correct secret
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -206,7 +222,7 @@ func Test_newAuthenticationMiddleware(t *testing.T) {
 				JwtSecret:     "",
 				JwksURL:       "",
 			},
-			authHeader:     forgedEmptyKeyToken,
+			authHeader:     forgedEmptyKeyTokenVal,
 			expectedStatus: http.StatusUnauthorized,
 			expectedBody:   "",
 		},
@@ -226,7 +242,7 @@ func Test_newAuthenticationMiddleware(t *testing.T) {
 				TenantIDClaim: "tenant_id",
 				JwtSecret:     secret,
 			},
-			authHeader:     forgedEmptyKeyToken,
+			authHeader:     forgedEmptyKeyTokenVal,
 			expectedStatus: http.StatusUnauthorized,
 			expectedBody:   "",
 		},
