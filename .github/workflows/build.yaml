@@ -2,12 +2,10 @@ name: Build and Push Docker image
 
 on:
   push:
-    branches:
-      - master
     tags:
-      - 'v*'
-      - 'v*.*'
-      - 'v*.*.*'
+      - "v*"
+      - "v*.*"
+      - "v*.*.*"
   release:
     types: [published]
 
@@ -44,7 +42,6 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=sha-
             type=ref,event=branch
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v6
