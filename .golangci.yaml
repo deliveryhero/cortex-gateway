@@ -1,0 +1,61 @@
+version: "2"
+run:
+  issues-exit-code: 1
+  tests: true
+output:
+  formats:
+    tab:
+      path: stdout
+      print-linter-name: true
+      colors: false
+  path-prefix: ""
+linters:
+  enable:
+    - dupl
+    - errorlint
+    - exhaustive
+    - forbidigo
+    - goconst
+    - gocritic
+    - gocyclo
+    - goheader
+    - gomoddirectives
+    - gomodguard
+    - gosec
+    - importas
+    - makezero
+    - misspell
+    - nakedret
+    - nolintlint
+    - prealloc
+    - predeclared
+    - promlinter
+    - thelper
+    - unparam
+    - whitespace
+    - unused
+    - staticcheck
+    - errcheck
+    - govet
+    - ineffassign
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

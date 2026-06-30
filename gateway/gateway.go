@@ -34,7 +34,7 @@ func New(cfg Config, svr *server.Server) (*Gateway, error) {
 	if err != nil {
 		return nil, err
 	}
-	alertManager, err := newProxy(cfg.AlertManagerAddress, "ruler")
+	alertManager, err := newProxy(cfg.AlertManagerAddress, "alertmanager")
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +76,6 @@ func (g *Gateway) registerRoutes() {
 	g.server.HTTP.PathPrefix("/api/v1/alerts").Handler(authenticateTenant.Wrap(http.HandlerFunc(g.alertManagerProxy.Handler)))
 	g.server.HTTP.PathPrefix("/alertmanager").Handler(authenticateTenant.Wrap(http.HandlerFunc(g.alertManagerProxy.Handler)))
 	g.server.HTTP.PathPrefix("/multitenant_alertmanager/status").Handler(authenticateTenant.Wrap(http.HandlerFunc(g.alertManagerProxy.Handler)))
-	g.server.HTTP.PathPrefix("/api/v1/alerts").Handler(authenticateTenant.Wrap(http.HandlerFunc(g.alertManagerProxy.Handler)))
 	g.server.HTTP.PathPrefix("/api/prom/alertmanager").Handler(authenticateTenant.Wrap(http.HandlerFunc(g.alertManagerProxy.Handler)))
 
 	g.server.HTTP.PathPrefix("/api").Handler(authenticateTenant.Wrap(http.HandlerFunc(g.queryFrontendProxy.Handler)))
@@ -86,12 +85,12 @@ func (g *Gateway) registerRoutes() {
 
 func (g *Gateway) healthCheck(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
-	w.Write([]byte("Ok"))
+	_, _ = w.Write([]byte("Ok"))
 }
 
 func (g *Gateway) notFoundHandler(w http.ResponseWriter, r *http.Request) {
 	logger := klog.With(log.WithContext(r.Context(), log.Logger), "ip_address", r.RemoteAddr)
-	level.Info(logger).Log("msg", "no request handler defined for this route", "route", r.RequestURI)
+	_ = level.Info(logger).Log("msg", "no request handler defined for this route", "route", r.RequestURI)
 	w.WriteHeader(404)
-	w.Write([]byte("404 - Resource not found"))
+	_, _ = w.Write([]byte("404 - Resource not found"))
 }

@@ -48,7 +48,7 @@ func main() {
 	// Setting the environment variable JAEGER_AGENT_HOST enables tracing
 	trace, err := tracing.NewFromEnv("cortex-gateway")
 	log.CheckFatal("initializing tracing", err)
-	defer trace.Close()
+	defer func() { _ = trace.Close() }()
 
 	svr, err := server.New(serverCfg)
 	log.CheckFatal("initializing server", err)
@@ -59,5 +59,5 @@ func main() {
 	log.CheckFatal("initializing gateway", err)
 	gateway.Start()
 
-	svr.Run()
+	_ = svr.Run()
 }

@@ -16,16 +16,16 @@ func newJWKS(cfg Config) *keyfunc.JWKS {
 	logger := klog.With(log.Logger)
 	options := keyfunc.Options{}
 	if cfg.JwksRefreshEnabled {
-		level.Debug(logger).Log("msg", "JWKS background refresh enabled", "URL", cfg.JwksURL, "interval", cfg.JwksRefreshInterval, "timeout", cfg.JwksRefreshTimeout)
+		_ = level.Debug(logger).Log("msg", "JWKS background refresh enabled", "URL", cfg.JwksURL, "interval", cfg.JwksRefreshInterval, "timeout", cfg.JwksRefreshTimeout)
 		options.RefreshInterval = time.Minute * time.Duration(cfg.JwksRefreshInterval)
 		options.RefreshTimeout = time.Second * time.Duration(cfg.JwksRefreshTimeout)
 		options.RefreshErrorHandler = func(err error) {
-			level.Error(logger).Log("msg", "Refreshing JWKS failed", "URL", cfg.JwksURL, "err", err.Error())
+			_ = level.Error(logger).Log("msg", "Refreshing JWKS failed", "URL", cfg.JwksURL, "err", err.Error())
 		}
 	}
 	jwks, err := keyfunc.Get(cfg.JwksURL, options)
 	if err != nil {
-		level.Error(logger).Log("msg", "Create JWKS from url failed", "URL", cfg.JwksURL, "err", err.Error())
+		_ = level.Error(logger).Log("msg", "Create JWKS from url failed", "URL", cfg.JwksURL, "err", err.Error())
 		return keyfunc.NewGiven(map[string]keyfunc.GivenKey{})
 	}
 	return jwks

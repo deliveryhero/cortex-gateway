@@ -1,0 +1,29 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.26.2"
+
+      - name: Format Check
+        run: |
+          go fmt ./...
+          git diff --exit-code
+
+      - name: Go Vet
+        run: go vet ./...
+
+      - name: Run Tests
+        run: make test
